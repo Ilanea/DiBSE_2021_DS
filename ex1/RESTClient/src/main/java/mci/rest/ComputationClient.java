@@ -8,6 +8,9 @@ import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import java.util.Scanner;
 
 public class ComputationClient {
+    final static int SERVER_PORT = 8080;
+    final static String SERVER_URL = "http://localhost:" + SERVER_PORT;
+    final static String API_ENDPOINT = "/api";
 
     public static void main(String args[]) {
 
@@ -16,7 +19,7 @@ public class ComputationClient {
 
         // Create client
         Client client = ClientBuilder.newBuilder().build();
-        WebTarget target = client.target("http://localhost:8080/api");
+        WebTarget target = client.target(SERVER_URL + API_ENDPOINT);
         ResteasyWebTarget rtarget = (ResteasyWebTarget)target;
 
         // Services
