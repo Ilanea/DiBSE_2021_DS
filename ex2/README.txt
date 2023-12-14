@@ -1,0 +1,1 @@
+Set LOAD_BALANCER_URL=http://localhost:8888/api as Env Variable in the System or IDEA
