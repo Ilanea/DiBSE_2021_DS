@@ -1,0 +1,54 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.jboss.resteasy:resteasy-servlet-initializer:3.15.6.Final'
+    implementation 'org.jboss.resteasy:resteasy-client:3.15.6.Final'
+    implementation 'org.jboss.resteasy:resteasy-jackson2-provider:3.15.6.Final'
+    implementation 'javax.servlet:javax.servlet-api:4.0.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'
+}
+
+group = 'mci.resteasy.fatjar'
+version = '1.0-SNAPSHOT'
+description = 'fatjar'
+sourceCompatibility = JavaVersion.VERSION_17
+targetCompatibility = JavaVersion.VERSION_17
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    duplicatesStrategy(DuplicatesStrategy.WARN)
+    manifest {
+        attributes(
+                'Class-Path': configurations.compileClasspath.collect { it.getName() }.join(' '),
+                'Main-Class': 'mci.rest.ComputationClient'
+        )
+    }
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+}
+
+//Creates a Assignment.zip under build/distributions
+task mciSrcZip(type: Zip) {
+    from projectDir
+    include 'src/**/*'
+    include '*.gradle'
+    include 'gradlew'
+    include 'gradlew.bat'
+    include 'gradle/**/*'
+    archiveFileName = "Assignment.zip"
+}
+
+tasks.withType(JavaExec) {
+    if (System.getProperty('DEBUG', 'false') == 'true') {
+        jvmArgs '-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=9099'
+    }
+}
+
