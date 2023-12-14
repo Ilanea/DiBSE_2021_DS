@@ -3,7 +3,6 @@ package mci.rest;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
 import org.eclipse.jetty.server.Server;
@@ -12,7 +11,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
 
-@ApplicationPath("/api")
 public class ComputationServer extends Application
 {
     final static int SERVER_PORT = 8080;

@@ -4,7 +4,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 
 @Path("/testservice")
-public interface TestService {
+public interface TestServiceInterface {
 
     @GET
     @Path("/helloworld")

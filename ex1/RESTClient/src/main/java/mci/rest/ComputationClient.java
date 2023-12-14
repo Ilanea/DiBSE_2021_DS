@@ -23,8 +23,8 @@ public class ComputationClient {
         ResteasyWebTarget rtarget = (ResteasyWebTarget)target;
 
         // Services
-        TestService hello = rtarget.proxy(TestService.class);
-        ComputationService calc = rtarget.proxy(ComputationService.class);
+        TestServiceInterface hello = rtarget.proxy(TestServiceInterface.class);
+        ComputationServiceInterface calc = rtarget.proxy(ComputationServiceInterface.class);
 
         // Get hello message from server
         String msg = hello.getHelloMessage();

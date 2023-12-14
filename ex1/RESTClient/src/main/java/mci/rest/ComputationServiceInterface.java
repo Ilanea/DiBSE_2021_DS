@@ -4,7 +4,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 
 @Path("/computationservice")
-public interface ComputationService {
+public interface ComputationServiceInterface {
     @GET
     @Path("/calculate")
     @Produces(MediaType.APPLICATION_JSON)
