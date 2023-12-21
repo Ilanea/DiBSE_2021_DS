@@ -1,9 +1,0 @@
-2023-41-21 09:41:12.584 [main] INFO  mci.rest.LoadBalancer - Server started at http://localhost:8888/api
-2023-41-21 09:41:12.593 [main] INFO  org.eclipse.jetty.server.Server - jetty-10.0.13; built: 2022-12-07T20:13:20.134Z; git: 1c2636ea05c0ca8de1ffd6ca7f3a98ac084c766d; jvm 17.0.6+10
-2023-41-21 09:41:12.711 [main] INFO  org.jboss.resteasy.resteasy_jaxrs.i18n - RESTEASY002225: Deploying javax.ws.rs.core.Application: class mci.rest.LoadBalancer
-2023-41-21 09:41:12.713 [main] INFO  org.jboss.resteasy.resteasy_jaxrs.i18n - RESTEASY002220: Adding singleton resource mci.rest.ComputationService from Application class mci.rest.LoadBalancer
-2023-41-21 09:41:12.715 [main] INFO  org.jboss.resteasy.resteasy_jaxrs.i18n - RESTEASY002220: Adding singleton resource mci.rest.RegisterService from Application class mci.rest.LoadBalancer
-2023-41-21 09:41:12.715 [main] INFO  org.jboss.resteasy.resteasy_jaxrs.i18n - RESTEASY002220: Adding singleton resource mci.rest.TestService from Application class mci.rest.LoadBalancer
-2023-41-21 09:41:12.739 [main] INFO  org.eclipse.jetty.server.handler.ContextHandler - Started o.e.j.s.ServletContextHandler@60a2630a{/,null,AVAILABLE}
-2023-41-21 09:41:12.814 [main] INFO  org.eclipse.jetty.server.AbstractConnector - Started ServerConnector@45efd90f{HTTP/1.1, (http/1.1)}{0.0.0.0:8888}
-2023-41-21 09:41:12.815 [main] INFO  org.eclipse.jetty.server.Server - Started Server@490caf5f{STARTING}[10.0.13,sto=0] @742ms
