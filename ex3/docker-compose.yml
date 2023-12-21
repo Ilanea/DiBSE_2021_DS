@@ -1,0 +1,26 @@
+version: "3.0"
+services:
+
+  load-balancer:
+    image: load-balancer
+    ports:
+      - "8888:8888"
+    networks:
+      - distributedsystems
+    volumes:
+      - ./loadbalancer-1:/var/log/loadbalancer/
+      
+  rest-server-1:
+    image: rest-server
+    volumes:
+      - ./rest-server-1:/var/log/computationserver/
+    environment:
+      - LOAD_BALANCER_URL=http://load-balancer:8888/api
+    depends_on:
+      - "load-balancer"
+    networks:
+      - distributedsystems
+     
+networks:
+  distributedsystems:
+      
