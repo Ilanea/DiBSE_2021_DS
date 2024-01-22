@@ -22,3 +22,7 @@ gradle-app.setting
 
 # IDEA
 .idea
+
+### Docker Testfolders ###
+ex5/all/chord-*
+ex5/test/chord-*

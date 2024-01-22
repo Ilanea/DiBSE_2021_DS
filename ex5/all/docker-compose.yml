@@ -1,0 +1,143 @@
+version: "3.0"
+services:
+
+      
+  chord-node-1:
+    image: chord-node
+    ports:
+      - "8881:8888"
+    volumes:
+      - ./chord-node-1:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=1
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.1
+      
+  chord-node-2:
+    image: chord-node
+    ports:
+      - "8882:8888"
+    volumes:
+      - ./chord-node-2:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=3
+      - CHORD_NODE=http://10.5.0.1:8888
+    depends_on:
+      - "chord-node-1"
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.3
+  
+  chord-node-3:
+    image: chord-node
+    ports:
+      - "8883:8888"
+    volumes:
+      - ./chord-node-3:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=7
+      - CHORD_NODE=http://10.5.0.1:8888
+    depends_on:
+      - "chord-node-1"
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.7
+      
+  chord-node-4:
+    image: chord-node
+    ports:
+      - "8884:8888"
+    volumes:
+      - ./chord-node-4:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=8
+      - CHORD_NODE=http://10.5.0.1:8888
+    depends_on:
+      - "chord-node-1"
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.8
+        
+  chord-node-5:
+    image: chord-node
+    ports:
+      - "8885:8888"
+    volumes:
+      - ./chord-node-5:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=13
+      - CHORD_NODE=http://10.5.0.1:8888
+    depends_on:
+      - "chord-node-1"
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.13
+        
+  chord-node-6:
+    image: chord-node
+    ports:
+      - "8886:8888"
+    volumes:
+      - ./chord-node-6:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=15
+      - CHORD_NODE=http://10.5.0.1:8888
+    depends_on:
+      - "chord-node-1"
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.15
+        
+  chord-node-7:
+    image: chord-node
+    ports:
+      - "8887:8888"
+    volumes:
+      - ./chord-node-7:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=18
+      - CHORD_NODE=http://10.5.0.1:8888
+    depends_on:
+      - "chord-node-1"
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.18
+
+  chord-node-8:
+    image: chord-node
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./chord-node-8:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=25
+      - CHORD_NODE=http://10.5.0.1:8888
+    depends_on:
+      - "chord-node-1"
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.25
+        
+  chord-node-9:
+    image: chord-node
+    ports:
+      - "8889:8888"
+    volumes:
+      - ./chord-node-9:/var/log/chordnode/
+    environment:
+      - CHORD_ADDRESS=27
+      - CHORD_NODE=http://10.5.0.1:8888
+    depends_on:
+      - "chord-node-1"
+    networks:
+      distributedsystems:
+        ipv4_address: 10.5.0.27
+        
+networks:
+  distributedsystems:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.250
