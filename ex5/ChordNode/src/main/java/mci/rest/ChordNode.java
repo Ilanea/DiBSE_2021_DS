@@ -92,8 +92,6 @@ public class ChordNode {
         for (int i = 0; i < FINGERTABLE_SIZE; i++) {
             int start = (this.id + (1 << i)) % (1 << FINGERTABLE_SIZE);
 
-            log.info("START: " + start);
-
             JSONObject successor = new JSONObject(findSuccessor(start));
             String successorUrl = successor.getString("successorAddress");
 
@@ -117,6 +115,39 @@ public class ChordNode {
         String successorAddress = this.fingerTable.getFinger(0).getNode();
 
         return chordId(successorAddress);
+    }
+
+    private boolean isBetween(int targetId, int startId, int endId, boolean inclusiveStart, boolean inclusiveEnd) {
+        if (startId < endId) {
+            // Normal interval
+            if (inclusiveStart && inclusiveEnd) {
+                return targetId >= startId && targetId <= endId;
+            } else if (inclusiveStart) {
+                return targetId >= startId && targetId < endId;
+            } else if (inclusiveEnd) {
+                return targetId > startId && targetId <= endId;
+            } else {
+                return targetId > startId && targetId < endId;
+            }
+        } else if (startId > endId) {
+            // Interval wraps around the ring
+            if (inclusiveStart && inclusiveEnd) {
+                return targetId >= startId || targetId <= endId;
+            } else if (inclusiveStart) {
+                return targetId >= startId || targetId < endId;
+            } else if (inclusiveEnd) {
+                return targetId > startId || targetId <= endId;
+            } else {
+                return targetId > startId || targetId < endId;
+            }
+        } else {
+            // startId == endId
+            if (inclusiveStart && inclusiveEnd) {
+                return targetId == startId;
+            } else {
+                return false;
+            }
+        }
     }
 
 
@@ -187,24 +218,14 @@ public class ChordNode {
 
         // Check if the node itself is the predecessor
         if (nodeIdToFind == this.getSuccessorId()) {
-
             log.info("We are the predecessor, returning own address");
-            JSONObject response = new JSONObject();
-            response.put("predecessorId", this.id);
-            response.put("predecessorAddress", this.address);
-
-            return response.toString();
+            return createPredecessorResponse(this.id, this.address);
         }
 
         // Check if we are the node to find
         if (nodeIdToFind == this.id) {
-
             log.info("We are the node to find, returning own address");
-            JSONObject response = new JSONObject();
-            response.put("predecessorId", this.predecessorId);
-            response.put("predecessorAddress", this.predecessorAddress);
-
-            return response.toString();
+            return createPredecessorResponse(this.predecessorId, this.predecessorAddress);
         }
 
         // Otherwise, forward the query to the closest preceding finger in the fingertable
@@ -219,44 +240,14 @@ public class ChordNode {
 
         // Return own address if no suitable finger is found (seems not correct but it has to return something)
         log.info("No suitable predecessor finger found, returning own address");
-        JSONObject response = new JSONObject();
-        response.put("predecessorId", this.id);
-        response.put("predecessorAddress", this.address);
-
-        return response.toString();
+        return createPredecessorResponse(this.id, this.address);
     }
 
-    private boolean isBetween(int targetId, int startId, int endId, boolean inclusiveStart, boolean inclusiveEnd) {
-        if (startId < endId) {
-            // Normal interval
-            if (inclusiveStart && inclusiveEnd) {
-                return targetId >= startId && targetId <= endId;
-            } else if (inclusiveStart) {
-                return targetId >= startId && targetId < endId;
-            } else if (inclusiveEnd) {
-                return targetId > startId && targetId <= endId;
-            } else {
-                return targetId > startId && targetId < endId;
-            }
-        } else if (startId > endId) {
-            // Interval wraps around the ring
-            if (inclusiveStart && inclusiveEnd) {
-                return targetId >= startId || targetId <= endId;
-            } else if (inclusiveStart) {
-                return targetId >= startId || targetId < endId;
-            } else if (inclusiveEnd) {
-                return targetId > startId || targetId <= endId;
-            } else {
-                return targetId > startId || targetId < endId;
-            }
-        } else {
-            // startId == endId
-            if (inclusiveStart && inclusiveEnd) {
-                return targetId == startId;
-            } else {
-                return false;
-            }
-        }
+    private String createPredecessorResponse(int predecessorId, String predecessorAddress) {
+        JSONObject response = new JSONObject();
+        response.put("predecessorId", predecessorId);
+        response.put("predecessorAddress", predecessorAddress);
+        return response.toString();
     }
 
     private String forwardFindPredecessorQuery(int nodeIdToFind, String nodeAddress) {
@@ -324,12 +315,9 @@ public class ChordNode {
 
     public String sendMessageToNode(int destinationId, String message) {
         if (this.id.equals(destinationId)) {
-            // wow i got a message, lets answer it, dont know how yet
-
             log.info("Message received: " + message);
 
             return "Message received";
-
         } else {
             // Forward the message to the appropriate node
             String nextNodeAddress = findNextNodeForMessage(destinationId);
@@ -445,7 +433,7 @@ public class ChordNode {
 
             node.updateSuccessorQuery(this.id, this.address);
         } catch (Exception e) {
-            log.error("Error during notifySuccessor: " + e.getMessage());
+            log.error("Error during notifyPredecessor: " + e.getMessage());
         }
     }
 
