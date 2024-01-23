@@ -155,27 +155,25 @@ public class ChordNode {
         log.info("Finding successor for node ID: " + nodeIdToFind);
         log.info("Current node ID: " + this.id + ", Successor ID: " + this.getSuccessorId());
 
-        // If this node is the successor
-        if (this.id.equals(nodeIdToFind)) {
-            log.info("We are the successor, returning own address");
-            return createSuccessorResponse(this.id, this.address);
-        }
-
-        // If our successor is the successor of the provided ID
-        else if (isBetween(nodeIdToFind, this.id, this.getSuccessorId(), false, true)) {
-            log.info("Our Successor is the successor of the Node ID: " + nodeIdToFind);
+        // If the provided node ID is between this node and its successor, return our successor
+        if (isBetween(nodeIdToFind, this.id, this.getSuccessorId(), false, true)) {
+            log.info("Our current Successor is the successor of the Node ID: " + nodeIdToFind);
             return createSuccessorResponse(getSuccessorId(), this.getSuccessorAddress());
         }
 
         // Check finger table for a closer node
         else {
             // Find the closest preceding node from the finger table
-            String closestPrecedingNodeAddress = findClosestPrecedingNode(nodeIdToFind);
+            String closestPrecedingNodeAddress = findClosestPrecedingSuccessorNode(nodeIdToFind);
 
             if (!closestPrecedingNodeAddress.equals(this.address)) {
                 // Forward the query to the closest preceding node
-                log.info("Forwarding query to " + closestPrecedingNodeAddress);
-                return forwardFindSuccessorQuery(nodeIdToFind, closestPrecedingNodeAddress);
+                if(isNodeReachable(closestPrecedingNodeAddress)) {
+                    return forwardFindSuccessorQuery(nodeIdToFind, closestPrecedingNodeAddress);
+                } else {
+                    // If the closest preceding node is not reachable, return this node
+                    return createSuccessorResponse(this.id, this.address);
+                }
             } else {
                 // If the closest preceding node is this node, return this node's successor
                 return createSuccessorResponse(this.getSuccessorId(), this.getSuccessorAddress());
@@ -183,7 +181,7 @@ public class ChordNode {
         }
     }
 
-    private String findClosestPrecedingNode(int nodeIdToFind) {
+    private String findClosestPrecedingSuccessorNode(int nodeIdToFind) {
         for (int i = FINGERTABLE_SIZE - 1; i >= 0; i--) {
             int fingerId = chordId(this.fingerTable.getFinger(i).getNode());
             if (isBetween(fingerId, this.id, nodeIdToFind, false, false)) {
@@ -201,12 +199,12 @@ public class ChordNode {
     }
 
     private String forwardFindSuccessorQuery(int nodeIdToFind, String nodeAddress) {
+        log.info("Forwarding findSuccessor query to find Node " + nodeIdToFind + " to " + nodeAddress);
         Client client = ClientBuilder.newBuilder().build();
         WebTarget target = client.target(nodeAddress);
         ResteasyWebTarget rtarget = (ResteasyWebTarget) target;
         ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
 
-        log.info("We are in forwardFindSuccessorQuery, finding NodeID: " + nodeIdToFind + " forwarding to: " + nodeAddress);
         String successor = node.findSuccessorQuery(nodeIdToFind);
 
         return successor;
@@ -223,24 +221,39 @@ public class ChordNode {
         }
 
         // Check if we are the node to find
-        if (nodeIdToFind == this.id) {
-            log.info("We are the node to find, returning own address");
+        else if (nodeIdToFind == this.id) {
+            log.info("We are the node to find, returning own predecessor address");
             return createPredecessorResponse(this.predecessorId, this.predecessorAddress);
         }
 
-        // Otherwise, forward the query to the closest preceding finger in the fingertable
-        for (int i = FINGERTABLE_SIZE - 1; i >= 0; i--) {
-            String fingerAddress = this.fingerTable.getFinger(i).getNode();
-            int fingerId = chordId(fingerAddress);
-            if (isBetween(nodeIdToFind, fingerId, this.id,false, true)) {
-                log.info("Forwarding Query to find Predecessor of Node ID: " + nodeIdToFind + " to finger: " + fingerId + " at start " + i + " and address: " + fingerAddress);
-                return forwardFindPredecessorQuery(nodeIdToFind, fingerAddress);
+        // Check finger table for a closer node
+        else {
+            // Find the closest preceding node from the finger table
+            String closestPrecedingNodeAddress = findClosestPrecedingPredecessorNode(nodeIdToFind);
+
+            if (!closestPrecedingNodeAddress.equals(this.address)) {
+                // Forward the query to the closest preceding node
+                if(isNodeReachable(closestPrecedingNodeAddress)){
+                    return forwardFindPredecessorQuery(nodeIdToFind, closestPrecedingNodeAddress);
+                } else {
+                    // If the closest preceding node is not reachable, return this node's predecessor
+                    return createPredecessorResponse(this.predecessorId, this.predecessorAddress);
+                }
+            } else {
+                // If the closest preceding node is this node, return this node
+                return createPredecessorResponse(this.id, this.address);
             }
         }
+    }
 
-        // Return own address if no suitable finger is found (seems not correct but it has to return something)
-        log.info("No suitable predecessor finger found, returning own address");
-        return createPredecessorResponse(this.id, this.address);
+    private String findClosestPrecedingPredecessorNode(int nodeIdToFind) {
+        for (int i = FINGERTABLE_SIZE - 1; i >= 0; i--) {
+            int fingerId = chordId(this.fingerTable.getFinger(i).getNode());
+            if (isBetween(nodeIdToFind, fingerId, this.id, false, true)) {
+                return this.fingerTable.getFinger(i).getNode();
+            }
+        }
+        return this.address;
     }
 
     private String createPredecessorResponse(int predecessorId, String predecessorAddress) {
@@ -251,7 +264,7 @@ public class ChordNode {
     }
 
     private String forwardFindPredecessorQuery(int nodeIdToFind, String nodeAddress) {
-        log.info("Forwarding find predecessor query to " + nodeAddress);
+        log.info("Forwarding findPredecessor query to find Node " + nodeIdToFind + " to " + nodeAddress);
         Client client = ClientBuilder.newBuilder().build();
         WebTarget target = client.target(nodeAddress);
         ResteasyWebTarget rtarget = (ResteasyWebTarget) target;
@@ -456,7 +469,7 @@ public class ChordNode {
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         executor.scheduleAtFixedRate(() -> {
             stabilize();
-        }, 0, 60, TimeUnit.SECONDS);
+        }, 10, 30, TimeUnit.SECONDS);
     }
 
 
