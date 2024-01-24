@@ -65,7 +65,7 @@ public interface ChordNodeInterface {
     @GET
     @Path("/leave")
     @Produces(MediaType.TEXT_PLAIN)
-    String leave();
+    void leave();
 
     @GET
     @Path("/send-message/{destinationId}/{message}")
