@@ -26,3 +26,4 @@ gradle-app.setting
 ### Docker Testfolders ###
 ex5/all/chord-*
 ex5/test/chord-*
+ex5/PythonVisualize/chord_diagram.html
