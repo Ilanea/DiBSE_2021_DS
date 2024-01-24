@@ -17,20 +17,27 @@ chord_data = []
 
 # Fetch data from each endpoint
 for url in api_endpoints:
-    response = requests.get(url)
-    if response.status_code == 200:
-        node_info = response.json()
-        print("Node ID:", node_info[1]["id"])
-        for item in node_info[2]:
-            target_id = int(item["successor"].split(".")[3].split(":")[0])
-            print("Successor: ", target_id)
-            chord_data.append({
-                'source': node_info[1]["id"],
-                'target': target_id,
-                'value': 1,
-                'source_description': f'Node {node_info[1]["id"]}',
-                'target_description': f'Node {target_id}'
-            })
+    try:
+        response = requests.get(url, timeout=(3, 5))
+
+        if response.status_code == 200:
+            node_info = response.json()
+            print("Node ID:", node_info[1]["id"])
+            for item in node_info[2]:
+                target_id = int(item["successor"].split(".")[3].split(":")[0])
+                print("Successor: ", target_id)
+                chord_data.append({
+                    'source': node_info[1]["id"],
+                    'target': target_id,
+                    'value': 1,
+                    'source_description': f'Node {node_info[1]["id"]}',
+                    'target_description': f'Node {target_id}'
+                })
+
+    except requests.exceptions.Timeout:
+        print("Timeout occurred to fetch data from: ", url)
+    except requests.exceptions.RequestException as e:
+        print("Error occurred while fetching data from:", url, "; Error:", e)
 
 # Create a DataFrame from the collected data
 df = pd.DataFrame(chord_data)
