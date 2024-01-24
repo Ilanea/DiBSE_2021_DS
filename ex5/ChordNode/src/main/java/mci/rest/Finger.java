@@ -3,8 +3,8 @@ package mci.rest;
 public class Finger {
 
     Integer start;
-
     String nodeAddress;
+    FingerInterval interval;
 
     public Finger(Integer start, String node) {
         this.start = start;
@@ -27,4 +27,10 @@ public class Finger {
         this.nodeAddress = nodeAddress;
     }
 
+    public void setInterval(Integer start, Integer end) {
+        this.interval = new FingerInterval(start, end);
+    }
+    public String getInterval() {
+        return this.interval.getInterval();
+    }
 }

@@ -63,6 +63,11 @@ public interface ChordNodeInterface {
     String ping();
 
     @GET
+    @Path("/leave")
+    @Produces(MediaType.TEXT_PLAIN)
+    String leave();
+
+    @GET
     @Path("/send-message/{destinationId}/{message}")
     @Consumes(MediaType.APPLICATION_JSON)
     void sendMessageToNode(@PathParam("destinationId") int destinationId, @PathParam("message") String message);

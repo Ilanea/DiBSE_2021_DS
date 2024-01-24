@@ -9,6 +9,7 @@ services:
     volumes:
       - ./chord-node-1:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=1
     networks:
       distributedsystems:
@@ -21,6 +22,7 @@ services:
     volumes:
       - ./chord-node-2:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=3
       - CHORD_NODE=http://10.5.0.1:8888
     depends_on:
@@ -36,6 +38,7 @@ services:
     volumes:
       - ./chord-node-3:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=7
       - CHORD_NODE=http://10.5.0.1:8888
     depends_on:
@@ -51,6 +54,7 @@ services:
     volumes:
       - ./chord-node-4:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=8
       - CHORD_NODE=http://10.5.0.1:8888
     depends_on:
@@ -66,6 +70,7 @@ services:
     volumes:
       - ./chord-node-5:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=13
       - CHORD_NODE=http://10.5.0.1:8888
     depends_on:
@@ -81,6 +86,7 @@ services:
     volumes:
       - ./chord-node-6:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=15
       - CHORD_NODE=http://10.5.0.1:8888
     depends_on:
@@ -96,6 +102,7 @@ services:
     volumes:
       - ./chord-node-7:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=18
       - CHORD_NODE=http://10.5.0.1:8888
     depends_on:
@@ -111,6 +118,7 @@ services:
     volumes:
       - ./chord-node-8:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=25
       - CHORD_NODE=http://10.5.0.1:8888
     depends_on:
@@ -126,6 +134,7 @@ services:
     volumes:
       - ./chord-node-9:/var/log/chordnode/
     environment:
+      - FINGERTABLE_SIZE=5
       - CHORD_ADDRESS=27
       - CHORD_NODE=http://10.5.0.1:8888
     depends_on:

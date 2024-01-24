@@ -23,13 +23,13 @@ import org.slf4j.LoggerFactory;
 
 public class ChordNodeApp extends Application {
 
-    private static ChordNode chordNodeInstance = new ChordNode();
+    private static ChordNode chordNodeInstance;
     final static int SERVER_PORT = 8888;
     final static String SERVER_URL = "http://localhost:" + SERVER_PORT;
     final static String API_ENDPOINT = "/api";
     static String CHORD_ADDRESS = null;
     static String CHORD_NODE = null;
-    private final static int FINGERTABLE_SIZE = 5;
+    private static int FINGERTABLE_SIZE;
     private Set<Object> singletons = new HashSet<Object>();
     static Logger log = LoggerFactory.getLogger(ChordNodeApp.class);
 
@@ -47,6 +47,16 @@ public class ChordNodeApp extends Application {
     public static void main(String[] args) throws Exception {
         log.info("Starting ChordNodeApp");
         Map<String, String> env = System.getenv();
+
+        FINGERTABLE_SIZE = Integer.parseInt(env.get("FINGERTABLE_SIZE"));
+        if(FINGERTABLE_SIZE < 1) {
+            log.error("FINGERTABLE_SIZE not set or invalid");
+            System.exit(1);
+        } else {
+            log.info("FINGERTABLE_SIZE is set to {}", FINGERTABLE_SIZE);
+            chordNodeInstance = new ChordNode(FINGERTABLE_SIZE);
+        }
+
 
         // Starting Jetty Server in an extra Thread
         Thread serverThread = new Thread(() -> {
