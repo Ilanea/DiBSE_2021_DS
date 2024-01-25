@@ -32,3 +32,14 @@ Send Message to node (Could be done better with JSON but for testing purposes it
 ```
 POST http://localhost:8881/api/node/send-message?destinationId=3&message=Hallo du!
 ```
+
+Data handling
+```
+PUT http://localhost:8881/api/node/data/add?value=test
+```
+```
+GET http://localhost:8881/api/node/data/get?key=<keyId>
+```
+```
+DELETE http://localhost:8881/api/node/data/remove?key=<keyId>
+```
