@@ -25,14 +25,10 @@ docker compose up
 Get chord info:
 Ports range from 8881-8889 when starting all nodes
 ```
-http://localhost:8881/api/node
+GET http://localhost:8881/api/node
 ```
 
 Send Message to node (Could be done better with JSON but for testing purposes it works):
 ```
-http://localhost:8881/api/node/send-message/<recepientId>/<message>
-```
-Example:
-```
-http://localhost:8881/api/node/send-message/27/"Testmessage"
+POST http://localhost:8881/api/node/send-message?destinationId=3&message=Hallo du!
 ```
