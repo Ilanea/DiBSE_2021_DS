@@ -387,8 +387,12 @@ public class ChordNode {
     public String addData(String value) {
         int key = Math.abs(value.hashCode()) % (1 << FINGERTABLE_SIZE);
         if(isBetween(key, this.predecessorId, this.id, false, true)){
-            this.data.put(key, value);
-            return "Data with key " + key + " added to node " + this.id;
+            if(!this.data.containsKey(key)){
+                this.data.put(key, value);
+                return "Data with key " + key + " added to node " + this.id;
+            } else {
+                return "Data with key " + key + " already exists in node " + this.id;
+            }
         } else {
             String nextNodeAddress = findNextNodeForData(key);
             return forwardAddData(value, nextNodeAddress);
