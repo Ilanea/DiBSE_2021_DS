@@ -17,6 +17,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +34,7 @@ public class ChordNode {
     private Integer predecessorId;
     private String predecessorAddress;
     private boolean stabilizing = false;
+    private HashMap<Integer, String> data = new HashMap<Integer, String>();
     static Logger log = LoggerFactory.getLogger(ChordNode.class);
 
     public ChordNode(Integer fingertableSize) {
@@ -348,13 +350,11 @@ public class ChordNode {
         if (this.id.equals(destinationId)) {
             log.info("Message received: " + message);
 
-            return "Message received";
+            return "Message delivered to node " + this.id;
         } else {
             // Forward the message to the appropriate node
             String nextNodeAddress = findNextNodeForMessage(destinationId);
-            forwardMessage(message, destinationId, nextNodeAddress);
-
-            return "Message forwarded";
+            return forwardMessage(message, destinationId, nextNodeAddress);
         }
     }
 
@@ -368,14 +368,89 @@ public class ChordNode {
         return this.getSuccessorAddress();
     }
 
-    private void forwardMessage(String message, int destinationId, String nextNodeAddress) {
+    private String forwardMessage(String message, int destinationId, String nextNodeAddress) {
         Client client = ClientBuilder.newBuilder().build();
         WebTarget target = client.target(nextNodeAddress);
         ResteasyWebTarget rtarget = (ResteasyWebTarget)target;
         ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
 
-        node.sendMessageToNode(destinationId, message);
+        return node.sendMessageToNode(destinationId, message);
     }
+
+    /*
+     *
+     * Data Handling
+     *
+     *
+     */
+
+    public String addData(String value) {
+        int key = Math.abs(value.hashCode()) % (1 << FINGERTABLE_SIZE);
+        if(isBetween(key, this.predecessorId, this.id, false, true)){
+            this.data.put(key, value);
+            return "Data with key " + key + " added to node " + this.id;
+        } else {
+            String nextNodeAddress = findNextNodeForData(key);
+            return forwardAddData(value, nextNodeAddress);
+        }
+    }
+
+    public String removeData(Integer key){
+        if(this.data.containsKey(key)){
+            this.data.remove(key);
+            return "Data with key " + key + " removed from node " + this.id;
+        } else {
+            String nextNodeAddress = findNextNodeForData(key);
+            return forwardRemoveData(key, nextNodeAddress);
+        }
+    }
+
+    public String getData(Integer key){
+        if(this.data.containsKey(key)){
+            return this.data.get(key);
+        } else {
+            String nextNodeAddress = findNextNodeForData(key);
+            return forwardGetData(key, nextNodeAddress);
+        }
+    }
+
+    private String findNextNodeForData(int key) {
+        for (int i = FINGERTABLE_SIZE - 1; i >= 0; i--) {
+            int fingerId = chordId(this.fingerTable.getFinger(i).getNode());
+            if (fingerId != this.id && isBetween(fingerId, this.id, key, false, false)) {
+                return this.fingerTable.getFinger(i).getNode();
+            }
+        }
+        return this.getSuccessorAddress();
+    }
+
+    private String forwardAddData(String value, String nextNodeAddress) {
+        Client client = ClientBuilder.newBuilder().build();
+        WebTarget target = client.target(nextNodeAddress);
+        ResteasyWebTarget rtarget = (ResteasyWebTarget)target;
+        ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
+
+        return node.addDataQuery(value);
+    }
+
+    private String forwardRemoveData(Integer key, String nextNodeAddress) {
+        Client client = ClientBuilder.newBuilder().build();
+        WebTarget target = client.target(nextNodeAddress);
+        ResteasyWebTarget rtarget = (ResteasyWebTarget)target;
+        ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
+
+        return node.removeDataQuery(key);
+    }
+
+    private String forwardGetData(Integer key, String nextNodeAddress) {
+        Client client = ClientBuilder.newBuilder().build();
+        WebTarget target = client.target(nextNodeAddress);
+        ResteasyWebTarget rtarget = (ResteasyWebTarget)target;
+        ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
+
+        return node.getDataQuery(key);
+    }
+
 
     /*
     *
@@ -624,6 +699,17 @@ public class ChordNode {
             chord.put(fingerTable);
         }
 
+        if(!this.data.isEmpty()){
+            JSONArray data = new JSONArray();
+            for (int key : this.data.keySet()) {
+                JSONObject entry = new JSONObject();
+                entry.put("key", key);
+                entry.put("value", this.data.get(key));
+                data.put(entry);
+            }
+            chord.put(data);
+        }
+
         return chord.toString();
     }
 
@@ -806,15 +892,34 @@ public class ChordNode {
         }
     }
 
-    @GET
-    @Path("/send-message/{destinationId}/{message}")
+    @POST
+    @Path("/send-message")
     @Consumes(MediaType.APPLICATION_JSON)
-    public String sendMessage(@PathParam("destinationId") int destinationId, @PathParam("message") String message) {
+    public String sendMessage(@QueryParam("destinationId") int destinationId, @QueryParam("message") String message) {
         log.info("Received request to send message to node " + destinationId + " with message " + message);
 
-        String response = this.sendMessageToNode(destinationId, message);
+        return this.sendMessageToNode(destinationId, message);
+    }
 
-        return response;
+    @PUT
+    @Path("/data/add")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public String addDataQuery(@QueryParam("value") String value){
+        return this.addData(value);
+    }
+
+    @DELETE
+    @Path("/data/remove")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public String removeDataQuery(@QueryParam("key") Integer key){
+        return this.removeData(key);
+    }
+
+    @GET
+    @Path("/data/get")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public String getDataQuery(@QueryParam("key") Integer key){
+        return this.getData(key);
     }
 
 }

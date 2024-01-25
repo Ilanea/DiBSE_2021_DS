@@ -67,8 +67,23 @@ public interface ChordNodeInterface {
     @Produces(MediaType.TEXT_PLAIN)
     void leave();
 
-    @GET
-    @Path("/send-message/{destinationId}/{message}")
+    @POST
+    @Path("/send-message")
     @Consumes(MediaType.APPLICATION_JSON)
-    void sendMessageToNode(@PathParam("destinationId") int destinationId, @PathParam("message") String message);
+    String sendMessageToNode(@QueryParam("destinationId") int destinationId, @QueryParam("message") String message);
+
+    @PUT
+    @Path("/data/add")
+    @Consumes(MediaType.APPLICATION_JSON)
+    String addDataQuery(@QueryParam("value") String value);
+
+    @DELETE
+    @Path("/data/remove")
+    @Consumes(MediaType.APPLICATION_JSON)
+    String removeDataQuery(@QueryParam("key") Integer key);
+
+    @GET
+    @Path("/data/get")
+    @Consumes(MediaType.APPLICATION_JSON)
+    String getDataQuery(@QueryParam("key") Integer key);
 }
