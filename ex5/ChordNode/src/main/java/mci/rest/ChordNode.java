@@ -183,7 +183,11 @@ public class ChordNode {
                 return forwardFindSuccessorQuery(nodeIdToFind, closestPrecedingNodeAddress);
             } else {
                 // If the closest preceding node is this node, return this node's successor
-                return createSuccessorResponse(this.getSuccessorId(), this.getSuccessorAddress());
+                if(isNodeReachable(this.getSuccessorAddress())){
+                    return createSuccessorResponse(this.getSuccessorId(), this.getSuccessorAddress());
+                } else {
+                    return createSuccessorResponse(this.id, this.address);
+                }
             }
         }
     }
@@ -299,7 +303,7 @@ public class ChordNode {
             //log.info("Is new node closer to start than current finger? " + isCloser(newNodeId, currentFingerNodeId, start));
 
             // Update finger if new node is closer to the start than the current finger's node
-            if (isCloser(newNodeId, currentFingerNodeId, start)) {
+            if (isCloser(newNodeId, currentFingerNodeId, start) && isNodeReachable(newNodeAddress)) {
                 Finger finger = new Finger(start, newNodeAddress);
                 finger.setInterval(start,end);
                 this.fingerTable.setFinger(i, finger);
@@ -502,7 +506,7 @@ public class ChordNode {
 
                 // If the successor's predecessor is not this node
                 log.info("Successor's predecessor ID: " + predecessorId + ", this node ID: " + this.id);
-                if (!predecessorAddress.isEmpty() && !predecessorAddress.equals(this.address)) {
+                if (predecessorAddress != null && !predecessorAddress.isEmpty() && !predecessorAddress.isBlank() && !predecessorAddress.equals(this.address)) {
                     if (isBetween(predecessorId, this.id, this.getSuccessorId(), false, true)) {
                         // Update successor if a closer node is found
                         this.setSuccessor(predecessorAddress);
@@ -515,9 +519,10 @@ public class ChordNode {
             }
         }
 
+        log.info("Trying to notifying successor " + this.getSuccessorAddress() + " that we are its predecessor");
         if(isNodeReachable(this.getSuccessorAddress())) {
             // Notify successor that we are its predecessor
-            log.info("Notify successor " + this.getSuccessorAddress() + " that we are its predecessor");
+            log.info("Notified successor " + this.getSuccessorAddress() + " that we are its predecessor");
             this.notifySuccessor();
         } else {
             // Unlucky timing
@@ -806,6 +811,12 @@ public class ChordNode {
             return "Predecessor not updated";
         } else if(isCloser(predecessorId, this.id, this.predecessorId)){
             log.info("New predecessor is closer to us than our current predecessor. Updating predecessor.");
+            this.setPredecessorAddress(predecessorAddress);
+            this.setPredecessorId(predecessorId);
+
+            return "Predecessor updated";
+        } else if(!isNodeReachable(this.predecessorAddress)){
+            log.info("Our predecessor left the network. Updating predecessor.");
             this.setPredecessorAddress(predecessorAddress);
             this.setPredecessorId(predecessorId);
 
