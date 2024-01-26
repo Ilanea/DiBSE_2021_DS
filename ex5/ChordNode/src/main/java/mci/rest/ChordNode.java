@@ -21,8 +21,6 @@ import java.util.HashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 
 @Path("/node")
@@ -33,7 +31,7 @@ public class ChordNode {
     private FingerTable fingerTable;
     private Integer predecessorId;
     private String predecessorAddress;
-    private boolean stabilizing = false;
+    private Integer next = 0;
     private HashMap<Integer, String> data = new HashMap<Integer, String>();
     static Logger log = LoggerFactory.getLogger(ChordNode.class);
 
@@ -79,7 +77,6 @@ public class ChordNode {
     public String getPredecessorAddress() {
         return this.predecessorAddress;
     }
-    private final Lock joinLock = new ReentrantLock();
 
     /*
      *
@@ -170,14 +167,10 @@ public class ChordNode {
         log.info("Finding successor for node ID: " + nodeIdToFind);
         log.info("Current node ID: " + this.id + ", Successor ID: " + this.getSuccessorId());
 
-        // If the provided node ID is between this node and its successor, return our successor
-        if (isBetween(nodeIdToFind, this.id, this.getSuccessorId(), false, true)) {
+        // If the provided node ID is between this node and its successor, return our successor (if it's available)
+        if (isNodeReachable(this.getSuccessorAddress()) && (isBetween(nodeIdToFind, this.id, this.getSuccessorId(), false, true))) {
             log.info("Our current Successor is the successor of the Node ID: " + nodeIdToFind);
-            if (isNodeReachable(this.getSuccessorAddress())) {
-                return createSuccessorResponse(this.getSuccessorId(), this.getSuccessorAddress());
-            } else {
-                return createSuccessorResponse(this.id, this.address);
-            }
+            return createSuccessorResponse(this.getSuccessorId(), this.getSuccessorAddress());
         }
 
         // Check finger table for a closer node
@@ -315,15 +308,21 @@ public class ChordNode {
             }
         }
 
+        //this.initializeFingerTable();
+
         return updatedFinger ? "Finger table updated" : "Finger table not updated";
     }
 
     private boolean isCloser(int nodeId, int comparedNodeId, int targetId) {
+        //log.info("Checking if node " + nodeId + " is closer to " + targetId + " than node " + comparedNodeId);
+
         int totalNodes = 1 << FINGERTABLE_SIZE;
 
         int distanceToTarget = (nodeId - targetId + totalNodes) % totalNodes;
         int comparedDistanceToTarget = (comparedNodeId - targetId + totalNodes) % totalNodes;
 
+        //log.info("Distance to target: " + distanceToTarget + ", compared distance to target: " + comparedDistanceToTarget);
+        //log.info(String.valueOf(distanceToTarget < comparedDistanceToTarget));
         return distanceToTarget < comparedDistanceToTarget;
     }
 
@@ -391,7 +390,8 @@ public class ChordNode {
                 this.data.put(key, value);
                 return "Data with key " + key + " added to node " + this.id;
             } else {
-                return "Data with key " + key + " already exists in node " + this.id;
+                this.data.put(key, value);
+                return "Data with key " + key + " already exists in node " + this.id + " overwriting value";
             }
         } else {
             String nextNodeAddress = findNextNodeForData(key);
@@ -464,12 +464,16 @@ public class ChordNode {
      */
 
     public synchronized void stabilize() {
-        this.stabilizing = true;
-
         log.info("Running stabilize task on Node " + this.id);
+
+        // Check if successor is myself
+        if(this.address.equals(this.getSuccessorAddress())){
+            log.info("Successor is myself. No need to stabilize.");
+            return;
+        }
+
         // Check if successor is reachable
-        boolean isReachable = isNodeReachable(this.getSuccessorAddress());
-        if (!isReachable) {
+        if (!isNodeReachable(this.getSuccessorAddress())) {
             log.error("Successor is not reachable. Need to find next available successor.");
 
             // We need to take the node out of our finger table and update the successor to the next node in the chord network
@@ -481,136 +485,106 @@ public class ChordNode {
                     this.setSuccessor(finger.getNode());
                     log.info("Updated successor to " + finger.getNode());
 
-                    log.info("Reinitializing finger table...");
-                    this.initializeFingerTable();
-
                     break;
                 }
             }
-        }
+        } else {
+            log.info("Successor is reachable. Checking if successor's predecessor is this node.");
 
-        // Retrieve successor's current predecessor
-        if(isNodeReachable(this.getSuccessorAddress())) {
-            JSONObject json = new JSONObject(getSuccessorsPredecessorAddress());
+            String successorPredecessorAddress = getSuccessorsPredecessorAddress();
 
-            // Extracting the successor and predecessor IDs
-            int predecessorId = json.getInt("predecessorId");
-            String predecessorAddress = json.getString("predecessorAddress");
+            // shit hack to check for empty json
+            if(!successorPredecessorAddress.equals("{}")) {
+                JSONObject json = new JSONObject(successorPredecessorAddress);
 
-            // If the successor's predecessor is not this node
-            if (predecessorAddress != null && !predecessorAddress.equals(this.address)) {
-                if (isBetween(predecessorId, this.id, this.getSuccessorId(), false, true)) {
-                    // Update successor if a closer node is found
-                    this.setSuccessor(predecessorAddress);
+                int predecessorId = json.getInt("predecessorId");
+                String predecessorAddress = json.getString("predecessorAddress");
 
-                    log.info("Updated successor to " + this.getSuccessorAddress() + " with ID " + this.getSuccessorId());
-                    this.newNodeToFingerTable(predecessorId, predecessorAddress);
+                // If the successor's predecessor is not this node
+                log.info("Successor's predecessor ID: " + predecessorId + ", this node ID: " + this.id);
+                if (!predecessorAddress.isEmpty() && !predecessorAddress.equals(this.address)) {
+                    if (isBetween(predecessorId, this.id, this.getSuccessorId(), false, true)) {
+                        // Update successor if a closer node is found
+                        this.setSuccessor(predecessorAddress);
 
+                        log.info("Updated successor to " + this.getSuccessorAddress() + " with ID " + this.getSuccessorId());
+                        this.newNodeToFingerTable(predecessorId, predecessorAddress);
+
+                    }
                 }
             }
         }
 
-        // Check if my predecessor is still reachable
-        if(isNodeReachable(this.getPredecessorAddress())) {
-            this.notifyPredecessor();
+        if(isNodeReachable(this.getSuccessorAddress())) {
+            // Notify successor that we are its predecessor
+            log.info("Notify successor " + this.getSuccessorAddress() + " that we are its predecessor");
+            this.notifySuccessor();
         } else {
-            // if not, ask my successor to find a new predecessor for me
-            log.info("Predecessor is not reachable. Asking successor to find new predecessor for me.");
+            // Unlucky timing
+            log.error("Successor is not reachable. Cannot notify successor.");
+        }
+
+        log.info("Stabilization task completed on Node " + this.id);
+    }
+
+    private synchronized void fixFingers(){
+        log.info("Running fix fingers task on Node " + this.id);
+
+        this.next = this.next + 1;
+        if (this.next >= FINGERTABLE_SIZE) {
+            next = 0;
+        }
+
+        int start = (this.id + (1 << next)) % (1 << FINGERTABLE_SIZE);
+        int end = (this.id + (1 << (next + 1))) % (1 << FINGERTABLE_SIZE) - 1;
+
+        log.info("Fixing finger " + next + " with ID " + start);
+        JSONObject newFingerJSON = new JSONObject(findSuccessorQuery(start));
+        Finger newFinger = new Finger(start, newFingerJSON.getString("successorAddress"));
+        newFinger.setInterval(start, end);
+
+        this.fingerTable.setFinger(next,newFinger);
+
+        log.info("Fix fingers task completed on Node " + this.id);
+    }
+
+    private synchronized void checkPredecessor() {
+        log.info("Running check predecessor task on Node " + this.id);
+
+        if(this.predecessorId != null && this.predecessorAddress != null) {
+            if (!isNodeReachable(this.predecessorAddress)) {
+                log.warn("Predecessor is not reachable. Set predecessor to NULL.");
+                this.predecessorId = null;
+                this.predecessorAddress = null;
+            }
+        } else {
+            log.warn("Predecessor is NULL. Waiting to get a new predecessor.");
+        }
+
+        log.info("Check predecessor task completed on Node " + this.id);
+    }
+
+    private String getSuccessorsPredecessorAddress() {
+        try {
             Client client = ClientBuilder.newBuilder().build();
             WebTarget target = client.target(this.getSuccessorAddress());
             ResteasyWebTarget rtarget = (ResteasyWebTarget) target;
             ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
 
-            String askSuccessorForPredecessor = node.findPredecessorQuery(this.id);
-            JSONObject json = new JSONObject(askSuccessorForPredecessor);
+            String successorPredecessorAddress = node.getPredecessor();
 
-            String predecessorAddress = json.getString("predecessorAddress");
-            int predecessorId = json.getInt("predecessorId");
-
-            if (predecessorAddress != null && !predecessorAddress.equals(this.address)) {
-                this.setPredecessorAddress(predecessorAddress);
-                this.setPredecessorId(predecessorId);
-
-                this.newNodeToFingerTable(predecessorId, predecessorAddress);
-
-                log.info("Updated predecessor to " + this.getPredecessorAddress() + " with ID " + this.getPredecessorId());
-
-                this.notifyPredecessor();
-            }
+            return successorPredecessorAddress;
+        } catch (Exception e) {
+            log.error("Error during getSuccessorsPredecessorAddress: " + e.getMessage());
+            return "";
         }
 
-        log.info("Reinitializing finger table...");
-        this.initializeFingerTable();
 
-        // Notify the successor & predecessor about this node
-        if(isNodeReachable(this.getSuccessorAddress())){
-            this.notifySuccessor();
-        }
-
-        log.info("Stabilization task completed on Node " + this.id);
-        this.stabilizing = false;
-    }
-
-    private void fixFingers(){
-        log.info("Running fix fingers task on Node " + this.id);
-
-        for (int i = 1; i < FINGERTABLE_SIZE; i++) {
-            Finger finger = this.fingerTable.getFinger(i);
-            if (!isNodeReachable(finger.getNode())) {
-                log.warn("Finger " + i + " is not reachable. Need to find next available finger.");
-
-                // We need to take the node out of our finger table and find the next node in the chord network
-                if(i < FINGERTABLE_SIZE){
-                    Finger newFinger = this.fingerTable.getFinger(i+1);
-                    if(isNodeReachable(newFinger.getNode())){
-                        this.fingerTable.setFinger(i, newFinger);
-                        log.info("Updated finger " + i + " to " + newFinger.getNode());
-                    }
-                } else {
-                    // If we are at the last finger we should ask another node to find the next finger for us
-                    Client client = ClientBuilder.newBuilder().build();
-                    WebTarget target = client.target(this.getSuccessorAddress());
-                    ResteasyWebTarget rtarget = (ResteasyWebTarget) target;
-                    ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
-
-                    String askSuccessorForFinger = node.findSuccessorQuery(finger.getStart());
-                    JSONObject json = new JSONObject(askSuccessorForFinger);
-
-                    String fingerAddress = json.getString("successorAddress");
-
-                    if (fingerAddress != null && !fingerAddress.equals(this.address)) {
-                        int start = (this.id + (1 << i)) % (1 << FINGERTABLE_SIZE);
-                        int end = (this.id + (1 << (i + 1))) % (1 << FINGERTABLE_SIZE) - 1;
-                        Finger newFinger = new Finger(start, fingerAddress);
-                        newFinger.setInterval(start, end);
-
-                        this.fingerTable.setFinger(i, newFinger);
-                        log.info("Updated finger " + i + " to " + fingerAddress);
-                    }
-                }
-            }
-        }
-
-        log.info("Reinitializing finger table...");
-        this.initializeFingerTable();
-
-        log.info("Fix fingers task completed on Node " + this.id);
-    }
-
-    private String getSuccessorsPredecessorAddress() {
-        Client client = ClientBuilder.newBuilder().build();
-        WebTarget target = client.target(this.getSuccessorAddress());
-        ResteasyWebTarget rtarget = (ResteasyWebTarget) target;
-        ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
-
-        String successorPredecessorAddress = node.getPredecessor();
-
-        return successorPredecessorAddress;
     }
 
     private void notifySuccessor() {
         try {
-            Client client = ClientBuilder.newBuilder().build();
+            Client client =  ClientBuilder.newBuilder().build();
             WebTarget target = client.target(this.getSuccessorAddress());
             ResteasyWebTarget rtarget = (ResteasyWebTarget) target;
             ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
@@ -621,29 +595,22 @@ public class ChordNode {
         }
     }
 
-    private void notifyPredecessor() {
-        try {
-            Client client = ClientBuilder.newBuilder().build();
-            WebTarget target = client.target(this.predecessorAddress);
-            ResteasyWebTarget rtarget = (ResteasyWebTarget) target;
-            ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
-
-            node.updateSuccessorQuery(this.id, this.address);
-        } catch (Exception e) {
-            log.error("Error during notifyPredecessor: " + e.getMessage());
-        }
-    }
-
     private boolean isNodeReachable(String nodeAddress) {
-        Client client = ClientBuilder.newBuilder().build();
+        ClientBuilder clientBuilder = ClientBuilder.newBuilder();
+        clientBuilder.connectTimeout(5, TimeUnit.SECONDS);
+        clientBuilder.readTimeout(5, TimeUnit.SECONDS);
+
+        Client client = clientBuilder.build();
         WebTarget target = client.target(nodeAddress);
         ResteasyWebTarget rtarget = (ResteasyWebTarget) target;
         ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
 
         try {
             if(node.ping().equals("OK")) {
+                //log.info("Node " + nodeAddress + " is reachable");
                 return true;
             } else {
+                log.error("Node " + nodeAddress + " is not reachable");
                 return false;
             }
         } catch (Exception e) {
@@ -658,11 +625,10 @@ public class ChordNode {
     public void schedulePeriodicTasks() {
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         executor.scheduleAtFixedRate(() -> {
-            if(!this.stabilizing){
-                stabilize();
-                fixFingers();
-            }
-        }, 10, 30, TimeUnit.SECONDS);
+            stabilize();
+            fixFingers();
+            checkPredecessor();
+        }, 10, 10, TimeUnit.SECONDS);
     }
 
 
@@ -722,37 +688,28 @@ public class ChordNode {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public synchronized String joinChordNetwork(@Context HttpServletRequest req, @QueryParam("id") int id, @QueryParam("address") String address) {
+        log.info("Received request from " + req.getRemoteAddr() + " to join the chord network with id " + id + " and address " + address);
 
-        joinLock.lock();
-        try {
-            log.info("Received request from " + req.getRemoteAddr() + " to join the chord network with id " + id + " and address " + address);
+        // Find the successor & predecessor for the new node
+        JSONObject successorForNewNode = new JSONObject(this.findSuccessor(id));
+        JSONObject predecessorForNewNode = new JSONObject(this.findPredecessor(id));
 
-            // add the new node to my fingertable
-            //this.newNodeToFingerTable(id, address);
+        // Create a JSON response with successor and predecessor info
+        int successorId = successorForNewNode.getInt("successorId");
+        int predecessorId = predecessorForNewNode.getInt("predecessorId");
+        String successorAddress = successorForNewNode.getString("successorAddress");
+        String predecessorAddress = predecessorForNewNode.getString("predecessorAddress");
 
-            // Find the successor & predecessor for the new node
-            JSONObject successorForNewNode = new JSONObject(this.findSuccessor(id));
-            JSONObject predecessorForNewNode = new JSONObject(this.findPredecessor(id));
+        JSONObject response = new JSONObject();
+        response.put("successorId", successorId);
+        response.put("successorAddress", successorAddress);
+        response.put("predecessorId", predecessorId);
+        response.put("predecessorAddress", predecessorAddress);
 
-            // Create a JSON response with successor and predecessor info
-            int successorId = successorForNewNode.getInt("successorId");
-            int predecessorId = predecessorForNewNode.getInt("predecessorId");
-            String successorAddress = successorForNewNode.getString("successorAddress");
-            String predecessorAddress = predecessorForNewNode.getString("predecessorAddress");
+        // add the new node to my fingertable
+        this.newNodeToFingerTable(id, address);
 
-            JSONObject response = new JSONObject();
-            response.put("successorId", successorId);
-            response.put("successorAddress", successorAddress);
-            response.put("predecessorId", predecessorId);
-            response.put("predecessorAddress", predecessorAddress);
-
-            // add the new node to my fingertable
-            this.newNodeToFingerTable(id, address);
-
-            return response.toString();
-        } finally {
-            joinLock.unlock();
-        }
+        return response.toString();
     }
 
     @GET
@@ -791,17 +748,19 @@ public class ChordNode {
     @Path("/update-successor")
     @Consumes(MediaType.APPLICATION_JSON)
     public String updateSuccessorQuery(@QueryParam("id") int successorId, @QueryParam("address") String successorAddress) {
-        joinLock.lock();
-        try {
-            log.info("Received request to update successor to Node " + successorId + " with Address " + successorAddress);
+        log.info("Received request to update successor to Node " + successorId + " with Address " + successorAddress);
 
+        if(isBetween(successorId, this.id, this.getSuccessorId(), true, true)){
+            log.info("New successor is closer to us than our current successor. Updating successor.");
             this.setSuccessor(successorAddress);
 
-            this.newNodeToFingerTable(successorId, successorAddress);
+            //this.newNodeToFingerTable(successorId, successorAddress);
+            this.initializeFingerTable();
 
             return "Successor updated";
-        } finally {
-            joinLock.unlock();
+        } else {
+            log.info("New successor is not closer to us than our current successor. Not updating successor.");
+            return "Successor not updated";
         }
     }
 
@@ -834,18 +793,26 @@ public class ChordNode {
     @Path("/update-predecessor")
     @Consumes(MediaType.APPLICATION_JSON)
     public String updatePredecessorQuery(@QueryParam("id") int predecessorId, @QueryParam("address") String predecessorAddress) {
-        joinLock.lock();
-        try {
-            log.info("Received request to update predecessor to Node " + predecessorId + " with Address " + predecessorAddress);
+        log.info("Received request to update our current predecessor to Node " + predecessorId + " with Address " + predecessorAddress);
 
+        if(this.predecessorId == null && this.predecessorAddress == null){
+            log.info("We don't have a predecessor yet. Updating predecessor.");
             this.setPredecessorAddress(predecessorAddress);
             this.setPredecessorId(predecessorId);
 
-            this.newNodeToFingerTable(predecessorId, predecessorAddress);
+            return "Predecessor updated";
+        } else if(this.predecessorId == predecessorId){
+            log.info("New predecessor is the same as our current predecessor. Not updating predecessor.");
+            return "Predecessor not updated";
+        } else if(isCloser(predecessorId, this.id, this.predecessorId)){
+            log.info("New predecessor is closer to us than our current predecessor. Updating predecessor.");
+            this.setPredecessorAddress(predecessorAddress);
+            this.setPredecessorId(predecessorId);
 
             return "Predecessor updated";
-        } finally {
-            joinLock.unlock();
+        } else {
+            log.info("New predecessor is not closer to us than our current predecessor. Not updating predecessor.");
+            return "Predecessor not updated";
         }
     }
 

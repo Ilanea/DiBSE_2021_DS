@@ -93,8 +93,8 @@ public class ChordNodeApp extends Application {
             String serverUrl = "http://" + hostAddress + ":" + SERVER_PORT + API_ENDPOINT;
 
             chordNodeInstance.setSuccessor(serverUrl);
-            chordNodeInstance.setPredecessorId(Integer.parseInt(chord_address));
-            chordNodeInstance.setPredecessorAddress(serverUrl);
+            chordNodeInstance.setPredecessorId(null);
+            chordNodeInstance.setPredecessorAddress(null);
             chordNodeInstance.initializeFirstFingerTable();
         } else {
             log.info("CHORD_NODE is set to {}", chord_node);
@@ -176,24 +176,15 @@ public class ChordNodeApp extends Application {
 
         // Deserialize JSON
         JSONObject json = new JSONObject(successorPredecessorTableJSON);
-
-        // Extracting the successor and predecessor IDs
-        int successorId = json.getInt("successorId");
-        int predecessorId = json.getInt("predecessorId");
         String successorAddress = json.getString("successorAddress");
-        String predecessorAddress = json.getString("predecessorAddress");
 
         // Set the successor and predecessor in the chord node instance
-        chordNodeInstance.setPredecessorId(predecessorId);
+        chordNodeInstance.setPredecessorId(null);
         chordNodeInstance.setSuccessor(successorAddress);
-        chordNodeInstance.setPredecessorAddress(predecessorAddress);
+        chordNodeInstance.setPredecessorAddress(null);
 
         // Notify my successor of his new predecessor
         updatePredeccessorOnSuccesor();
-
-        // Notify predecessors of my existence
-        notifyMyPredecessor();
-        notifySuccessorPredecessor();
 
         // Initializing the finger table
         chordNodeInstance.initializeFingerTable();
@@ -210,40 +201,6 @@ public class ChordNodeApp extends Application {
 
         String updatePredecessorOnSuccessor = node.updatePredecessorQuery(chordNodeInstance.getId(), chordNodeInstance.getAddress());
         log.info("Calling updatePredecessor on Successor: {}", updatePredecessorOnSuccessor);
-    }
-
-    // Notify my predecessor of his new successor (me)
-    private static void notifyMyPredecessor() {
-        // Create Client for Predecessor
-        Client client = ClientBuilder.newBuilder().build();
-        WebTarget target = client.target(chordNodeInstance.getPredecessorAddress());
-        ResteasyWebTarget rtarget = (ResteasyWebTarget)target;
-        ChordNodeInterface node = rtarget.proxy(ChordNodeInterface.class);
-
-        String updateSuccessor = node.updateSuccessorQuery(chordNodeInstance.getId(), chordNodeInstance.getAddress());
-        log.info("Calling updateSuccessor on Predecessor: {}", updateSuccessor);
-    }
-
-    // Notify my successor's predecessor of my existence (it should be me)
-    private static void notifySuccessorPredecessor() {
-        // Create Client for Successor
-        Client successorClient = ClientBuilder.newBuilder().build();
-        WebTarget successorTarget = successorClient.target(chordNodeInstance.getSuccessorAddress());
-        ResteasyWebTarget rSuccessorTarget = (ResteasyWebTarget)successorTarget;
-        ChordNodeInterface successor = rSuccessorTarget.proxy(ChordNodeInterface.class);
-
-
-        // Create Client for Predecessor
-        Client predecessorClient = ClientBuilder.newBuilder().build();
-        WebTarget predecessorTarget = predecessorClient.target(chordNodeInstance.getPredecessorAddress());
-        ResteasyWebTarget rPredecessorTarget = (ResteasyWebTarget)predecessorTarget;
-        ChordNodeInterface predecessor = rPredecessorTarget.proxy(ChordNodeInterface.class);
-
-        String updateSuccessor = successor.updateFingerTable(chordNodeInstance.getId(), chordNodeInstance.getAddress());
-        String updatePredecessor = predecessor.updateFingerTable(chordNodeInstance.getId(), chordNodeInstance.getAddress());
-
-        log.info("Calling updateFingertable on Successor: {}", updateSuccessor);
-        log.info("Calling updateFingertable on Predecessor: {}", updatePredecessor);
     }
 
 }

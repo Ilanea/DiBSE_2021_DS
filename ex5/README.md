@@ -1,5 +1,5 @@
 This seems to be working for creating the Chord Network and after some stabilizing time creates a working network with correct fingertables
-Nodes leaving the network is currently NOT working, the same for failing nodes
+Stabilization after a node fails can take some time because of Client Timeouts/Retries
 
 Build the JAR:
 ```
